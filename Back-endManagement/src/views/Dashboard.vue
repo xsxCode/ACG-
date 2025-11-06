@@ -1,268 +1,273 @@
 <template>
-  <el-container style="height: 100vh;">
+  <el-container class="dashboard-container">
     <!-- 左侧侧边栏 -->
-    <el-aside width="200px" style="background: #0f172a;">
-      <Sidebar />
+    <el-aside width="220px" class="sidebar-container">
+       <Sidebar />
     </el-aside>
 
     <!-- 右侧主内容区 -->
-    <el-container>
-      <!-- 顶部栏 -->
-      <el-header style="padding: 0 20px; border-bottom: 1px solid #e5e7eb; background: white;">
-        <div class="header-content">
-          <h2 style="margin: 0;">首页</h2>
-        </div>
-      </el-header>
-
-      <!-- 主要内容区 -->
-      <el-main class="dashboard-main">
-        <!-- 1.数据卡区 -->
-        <div class="data-cards">
-          <!-- 用户数据卡片 -->
-          <el-card class="data-card" @click="goToUserManage">
-            <div class="card-title">用户数据</div>
-            <el-statistic 
-              title="总用户数"
-              :value="userStats.total"
-              value-style="{fontSize: '24px'}"
-            />
-            <el-statistic
-              title="今日新增"
-              :value="userStats.todayNew"
-              value-style="{fontSize: '20px', color: '#10b981'}"
-              prefix="+"
-            />
+    <el-main>
+      <!-- 数据卡片区域 -->
+      <el-row :gutter="20" class="card-row">
+        <el-col :xs="24" :sm="8">
+          <el-card shadow="hover">
+            <el-statistic title="用户数据" :value="7048" suffix="人" />
+            <template #extra>
+              <el-button type="text" size="small">详情</el-button>
+            </template>
           </el-card>
-
-          <!-- 内容数据卡片 -->
-          <el-card class="data-card" @click="goToContentManage">
-            <div class="card-title">内容数据</div>
-            <el-statistic
-              title="总帖子数"
-              :value="contentStats.total"
-              value-style="{fontSize: '24px'}"
-            />
-            <el-statistic
-              title="待审核"
-              :value="contentStats.pending"
-              value-style="{fontSize: '20px', color: '#ef4444'}"
-            />
+        </el-col>
+        <el-col :xs="24" :sm="8">
+          <el-card shadow="hover">
+            <el-statistic title="内容数据" :value="212" suffix="条" />
+            <template #extra>
+              <el-button type="text" size="small">详情</el-button>
+            </template>
           </el-card>
-
-          <!-- 系统状态卡片 -->
-          <el-card class="data-card">
-            <div class="card-title">系统状态</div>
-            <div class="system-status-item">
-              <span>服务器负载</span>
-              <el-progress
-                :percentage="systemStatus.load"
-                :stroke-color="getLoadColor(systemStatus.load)"
-                style="width: 150px;"
-              />
-            </div>
-            <div class="system-status-item">
-              <span>运行时间</span>
-              <span>{{ systemStatus.runTime }}</span>
-            </div>
+        </el-col>
+        <el-col :xs="24" :sm="8">
+          <el-card shadow="hover">
+            <el-statistic title="系统状态" :value="262" suffix="项" />
+            <template #extra>
+              <el-button type="text" size="small">详情</el-button>
+            </template>
           </el-card>
-        </div>
+        </el-col>
+      </el-row>
 
-        <!-- 2. 快捷操作区 -->
-        <el-card class="operation-card">
-          <div class="operation-group">
-            <div class="group-title">用户管理</div>
-            <el-input 
-              v-model="userSearchKey"
-              placeholder="搜索用户名/ID"
-              style="width: 200px;"
-              prefix-icon="Search"
-            />
-            <el-button type="primary" @click="viewAllUsers">查看全部用户</el-button>
-            <el-button type="warning" @click="banManage">封禁管理</el-button>
-          </div>
-
-          <div class="operation-group">
-            <div class="group-title">内容管理</div>
-            <el-button type="primary" @click="checkPendingContent">待审核内容</el-button>
-            <el-button type="success" @click="viewHotContent">热门内容</el-button>
-            <el-select
-              v-model="contentType"
-              placeholder="选择类型"
-              style="width: 120px;"
-            >
-              <el-option label="帖子" value="post" />
-              <el-option label="评论" value="comment" />
-              <el-option label="圈子" value="circle" />
-            </el-select>
-          </div>
-        </el-card>
-
-        <!-- 3.最近动态列表 -->
-        <el-card class="timeline-card">
-          <div class="card-title">最近动态</div>
-          <el-timeline>
-            <el-timeline-item
-              v-for="(event,index) in latestEvents"
-              :key="index"
-              :timestamp="event.time"
-            >
-              <div class="event-content">
-                <span class="event-type">{{ event.type }}</span>
-                <span class="event-subject ">{{ event.subject }}</span>
-                <el-button
-                  size="small"
-                  type="text"
-                  @click="handleEvent(event)"
-                >
-                  {{ event.actionText }}
-                </el-button>
+      <!-- 图表区域 -->
+      <el-row :gutter="20" class="chart-row">
+        <el-col :xs="24" :md="12">
+          <el-card shadow="hover">
+            <template #header>
+              <div class="card-header">
+                <span>圈子管理</span>
+                <el-button-group>
+                  <el-button type="text" size="small">对比</el-button>
+                  <el-button type="text" size="small">进度</el-button>
+                </el-button-group>
               </div>
-            </el-timeline-item>
-          </el-timeline>
-        </el-card>
-      </el-main>
-    </el-container>
+            </template>
+            <div ref="lineChartRef" class="chart-container"></div>
+          </el-card>
+        </el-col>
+        <el-col :xs="24" :md="12">
+          <el-card shadow="hover">
+            <template #header>
+              <div class="card-header">
+                <span>快捷操作区</span>
+                <el-button type="text" size="small">进度</el-button>
+              </div>
+            </template>
+            <div ref="pieChartRef" class="chart-container"></div>
+          </el-card>
+        </el-col>
+      </el-row>
+
+      <el-row :gutter="20" class="chart-row">
+        <el-col :xs="24" :md="12">
+          <el-card shadow="hover">
+            <template #header>
+              <div class="card-header">
+                <span>快捷操作区</span>
+                <el-button type="text" size="small">进度</el-button>
+              </div>
+            </template>
+            <div ref="barChartRef" class="chart-container"></div>
+          </el-card>
+        </el-col>
+        <el-col :xs="24" :md="12">
+          <el-card shadow="hover">
+            <template #header>
+              <div class="card-header">
+                <span>用户管理与内容管理</span>
+                <el-button type="text" size="small">更多</el-button>
+              </div>
+            </template>
+            <div ref="progressRef" class="chart-container"></div>
+          </el-card>
+        </el-col>
+      </el-row>
+
+      <!-- 最近动态 -->
+      <el-card shadow="hover" class="timeline-card">
+        <template #header>
+          <div class="card-header">
+            <span>最近动态</span>
+            <el-button type="primary" size="small">添加</el-button>
+          </div>
+        </template>
+        <el-timeline>
+          <el-timeline-item
+            v-for="(item, index) in timelineData"
+            :key="index"
+            :timestamp="item.time"
+            placement="top"
+          >
+            <el-avatar :src="item.avatar" />
+            <span>{{ item.content }}</span>
+          </el-timeline-item>
+        </el-timeline>
+      </el-card>
+    </el-main>
   </el-container>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import axios from 'axios';
-// import { ElMessage } from 'element-plus';
-import Sidebar from '../components/Sidebar.vue'; // 引入侧边栏组件
+import * as echarts from 'echarts';
+import { House, User, Document, Collection, Setting } from '@element-plus/icons-vue';
+import Sidebar from '@/components/Sidebar.vue';
 
-// 1. 定义数据变量
-const userStats = ref({
-  total: 0,
-  todayNew: 0 // 修复拼写
-});
+// 侧边栏激活菜单
+const activeMenu = ref('/dashboard');
 
-const contentStats = ref({
-  total: 0,
-  pending: 0
-});
+// 图表容器 Ref
+const lineChartRef = ref(null);
+const pieChartRef = ref(null);
+const barChartRef = ref(null);
+const progressRef = ref(null);
 
-const systemStatus = ref({
-  load: 0,
-  runTime: '0天0时0分' // 修复初始值类型
-});
-
-const latestEvents = ref([]); // 修复拼写
-
-const userSearchKey = ref(''); // 修复拼写
-const contentType = ref('');
-
-// 2. 页面加载时获取数据
-onMounted(() => {
-  fetchDashboardData();
-  setInterval(fetchDashboardData, 5 * 60 * 1000); // 修复拼写
-});
-
-// 3. 数据获取函数
-const fetchDashboardData = async () => {
-  try {
-    // 模拟数据（实际项目替换为接口请求）
-    userStats.value = { total: 156, todayNew: 8 };
-    contentStats.value = { total: 320, pending: 12 };
-    systemStatus.value = { load: 45, runTime: '15天3时20分' };
-    latestEvents.value = [
-      { time: '2025-11-06 14:30', type: '用户注册', subject: '新用户“二次元控”注册', actionText: '查看' },
-      { time: '2025-11-06 11:20', type: '内容发布', subject: '用户“动漫达人”发布新帖子', actionText: '审核' }
-    ];
-  } catch (error) {
-    ElMessage.error('数据加载失败，请刷新页面重试');
-    console.error('数据获取错误：', error);
+// 时间线数据
+const timelineData = ref([
+  {
+    time: '2023-03-24',
+    avatar: 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png',
+    content: 'ACG碰碰部落-最新动态列表'
+  },
+  {
+    time: '2023-03-25',
+    avatar: 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png',
+    content: 'ACG碰碰部落-社区活动更新'
+  },
+  {
+    time: '2023-03-26',
+    avatar: 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png',
+    content: 'ACG概念馆整理'
   }
+]);
+
+// 初始化 ECharts 图表
+const initCharts = () => {
+  // 折线图（圈子管理）
+  const lineChart = echarts.init(lineChartRef.value);
+  lineChart.setOption({
+    xAxis: { type: 'category', data: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] },
+    yAxis: { type: 'value' },
+    series: [{
+      data: [20, 30, 40, 50, 60, 70, 80, 75, 85, 90],
+      type: 'line',
+      smooth: true,
+      itemStyle: { color: '#409EFF' },
+      areaStyle: {
+        color: {
+          type: 'linear',
+          x: 0, y: 0, x2: 0, y2: 1,
+          colorStops: [{ offset: 0, color: 'rgba(64, 158, 255, 0.2)' }, { offset: 1, color: 'rgba(64, 158, 255, 0)' }]
+        }
+      }
+    }],
+    grid: { left: '3%', right: '4%', bottom: '3%', top: '20%', containLabel: true }
+  });
+
+  // 饼图
+  const pieChart = echarts.init(pieChartRef.value);
+  pieChart.setOption({
+    series: [{
+      type: 'pie',
+      radius: ['40%', '70%'],
+      itemStyle: { borderRadius: 10, borderColor: '#fff', borderWidth: 2 },
+      data: [
+        { value: 60, name: '社团', itemStyle: { color: '#409EFF' } },
+        { value: 40, name: '主份', itemStyle: { color: '#e5e9f2' } }
+      ]
+    }]
+  });
+
+  // 柱状图
+  const barChart = echarts.init(barChartRef.value);
+  barChart.setOption({
+    xAxis: { type: 'category', data: ['104', '214', '34', '34', '64', '84', '204'] },
+    yAxis: { type: 'value' },
+    series: [
+      { data: [20, 40, 60, 70, 90, 50, 30], type: 'bar', itemStyle: { color: '#409EFF' } },
+      { data: [10, 20, 30, 40, 50, 20, 10], type: 'bar', itemStyle: { color: '#e5e9f2' } }
+    ],
+    grid: { left: '3%', right: '4%', bottom: '3%', top: '20%', containLabel: true }
+  });
+
+  // 进度条图表
+  const progressChart = echarts.init(progressRef.value);
+  progressChart.setOption({
+    xAxis: {
+      type: 'category',
+      data: ['用户管理与内容管理', '用户管理', '用户', '内容管理', '功能', '进度'],
+      axisTick: { show: false },
+      axisLine: { show: false },
+      axisLabel: { color: '#606266' }
+    },
+    yAxis: { show: false },
+    series: [{
+      type: 'bar',
+      data: [90, 80, 70, 60, 50, 40],
+      barWidth: 10,
+      barGap: '-100%',
+      itemStyle: {
+        color: ({ dataIndex }) => {
+          const colors = ['#409EFF', '#409EFF', '#409EFF', '#409EFF', '#e5e9f2', '#e5e9f2'];
+          return colors[dataIndex];
+        }
+      }
+    }],
+    grid: { left: '0', right: '0', bottom: '0', top: '0', containLabel: true }
+  });
 };
 
-// 4. 事件处理函数
-const goToUserManage = () => ElMessage.success('跳转到用户管理页面');
-const goToContentManage = () => ElMessage.success('跳转到内容管理页面');
-const viewAllUsers = () => ElMessage.success('查看全部用户');
-const banManage = () => ElMessage.success('进入封禁管理');
-const checkPendingContent = () => ElMessage.success('查看待审核内容');
-const viewHotContent = () => ElMessage.success('查看热门内容');
-const handleEvent = (event) => ElMessage.success(`处理事件:${event.actionText}`); // 修复模板字符串
-
-// 5. 负载颜色函数
-const getLoadColor = (load) => {
-  if (load < 60) return '#10b981';
-  if (load < 80) return '#f59e0b';
-  return '#ef4444';
-};
+// 页面挂载后初始化图表
+onMounted(() => {
+  initCharts();
+  // 监听窗口 resize，保证图表自适应
+  window.addEventListener('resize', () => {
+    echarts.getInstanceByDom(lineChartRef.value)?.resize();
+    echarts.getInstanceByDom(pieChartRef.value)?.resize();
+    echarts.getInstanceByDom(barChartRef.value)?.resize();
+    echarts.getInstanceByDom(progressRef.value)?.resize();
+  });
+});
 </script>
 
 <style scoped>
-/* 保持原有样式不变 */
-.dashboard-header {
-  background-color: #165dff;
-  color: white;
-  padding: 0 20px;
-}
-.header-title {
-  font-size: 18px;
-  line-height: 60px;
-}
-.dashboard-main {
-  padding: 20px;
-}
-.data-cards {
+.dashboard-container {
+  height: 100vh;
   display: flex;
-  gap: 20px;
+}
+
+.sidebar-menu {
+  height: 100vh;
+}
+
+.card-row, .chart-row {
   margin-bottom: 20px;
-  flex-wrap: wrap;
 }
-.data-card {
-  flex: 1;
-  min-width: 250px;
-  cursor: pointer;
+
+.chart-container {
+  width: 100%;
+  height: 250px;
 }
-.card-title {
-  font-size: 16px;
-  margin-bottom: 15px;
-  color: #666;
-}
-.system-status-item {
+
+.card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin: 15px 0;
 }
-.operation-card {
-  padding: 20px;
-  margin-bottom: 20px;
+
+.timeline-card >>> .el-timeline-item__node {
+  width: 16px;
+  height: 16px;
+  background-color: #409EFF;
 }
-.operation-group {
-  margin-bottom: 15px;
-  padding: 10px 0;
-  border-bottom: 1px solid #eee;
-}
-.operation-group:last-child {
-  border-bottom: none;
-}
-.group-title {
-  font-size: 16px;
-  margin-bottom: 10px;
-  color: #333;
-}
-.operation-group button,
-.operation-group .el-input,
-.operation-group .el-select {
+
+.timeline-card >>> .el-avatar {
   margin-right: 10px;
-  margin-bottom: 10px;
-}
-.timeline-card {
-  padding: 20px;
-}
-.event-content {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.event-type {
-  font-weight: 500;
-}
-.event-subject {
-  flex: 1;
 }
 </style>
