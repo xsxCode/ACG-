@@ -1,458 +1,460 @@
-<template >
-    <el-container style="height: 100vh;">
-        <!-- 侧边栏 -->
-        <el-aside width="200px" style="background: #0f172a;">
-            <Sidebar />
-        </el-aside>
+<template>
+  <el-container style="height: 100vh;">
+    <el-aside width="200px" style="background: #0f172a;">
+      <Sidebar />
+    </el-aside>
+    <el-container>
+      <el-header style="padding: 0 20px; border-bottom: 1px solid #e5e7eb;background: white;">
+        <div class="header-content">
+          <h2 style="margin: 0;">用户管理</h2>
+          <div class="header-actions">
+            <el-button type="primary" @click="addUser" size="default">
+              <el-icon><Plus/></el-icon>
+              添加用户
+            </el-button>
+            <el-button @click="exportData" size="default">
+              <el-icon><Download /></el-icon>
+              导出数据
+            </el-button>
+          </div>
+        </div>
+      </el-header>
+      <el-main style="background: #f5f7fa;padding: 20px;">
+        <!-- 搜索区域：紧凑样式优化 -->
+        <el-card style="margin-bottom: 20px; border-radius: 8px;">
+          <div class="search-toolbar">
+            <el-input 
+              v-model="searchParams.keyword"
+              placeholder="搜索用户名/手机号/邮箱"
+              style="width: 280px;"
+              prefix-icon="Search"
+              clearable
+              @input="debouncedSearch"
+              @keyup.enter="handleSearch"
+              size="small"
+            />
+            <el-select 
+              v-model="searchParams.status" 
+              placeholder="状态" 
+              clearable
+              @change="handleSearch"
+              style="width: 120px;"
+              size="small"
+            >
+              <el-option label="全部" value="" /> <!-- 新增“全部”选项 -->
+              <el-option label="正常" value="1"></el-option>
+              <el-option label="禁用" value="0"></el-option>
+            </el-select>
+            <el-button 
+              type="primary" 
+              @click="handleSearch" 
+              :loading="loading"
+              size="small"
+              icon="Search"
+            >
+              搜索
+            </el-button>
+            <el-button 
+              @click="resetSearch"
+              size="small"
+              icon="Refresh"
+            >
+              重置
+            </el-button>
+          </div>
+        </el-card>
 
-        <!-- 主内容区 -->
-        <el-container>
-            <!-- 顶部操作栏 -->
-             <el-header style="padding: 0 20px; border-bottom: 1px solid #e5e7eb;background: white;">
-                <div class="header-content">
-                    <h2 style="margin: 0;">用户管理</h2>
-                    <div class="header-actions">
-                        <el-button type="primary" @click="addUser">
-                            <el-icon><Plus/></el-icon>
-                            添加用户
-                        </el-button>
-                        <el-button @click="exportData">
-                            <el-icon><Download /></el-icon>
-                            导出数据
-                        </el-button>
-                    </div>
-                </div>
-             </el-header>
-             <!-- 搜索和筛选区域 -->
-              <el-main style="background: #f5f7fa;padding: 20px;">
-                <!-- 搜索卡片 -->
-                <el-card style="margin-bottom: 20px;">
-                    <div class="search-toolbar">
-                        <!-- 关键词索 -->
-                        <el-input 
-                            v-model="searchParams.keyword"
-                            placeholder="搜索用户名/手机号/邮箱/标签"
-                            style="width: 300px;"
-                            prefix-icon="Search"
-                            clearble
-                            @keyup.enter="handleSearch"
-                        />
+        <el-card style="border-radius: 8px;">
+          <div class="batch-actions" v-if="selectedUsers.length >0">
+            <span>已选择{{ selectedUsers.length }}条数据</span>
+            <el-button type="danger" size="small" @click="batchDelete">批量删除</el-button>
+            <el-button type="success" size="small" @click="batchEnable">批量启用</el-button>
+            <el-button type="warning" size="small" @click="batchDisable">批量禁用</el-button>
+          </div>
+          
+          <!-- 补充key确保列表更新时正确渲染 -->
+          <UserTable 
+            :user-list="userList || []"
+            :selected-users="selectedUsers"
+            :loading="loading"
+            @selection-change="handleSelectionChange"
+            @edit="handleEdit"
+            @delete="handleDelete"
+            @reset-password="handleResetPassword"
+            @status-change="handleStatusChange"
+            :key="`user-table-${pagination.currentPage}-${pagination.pageSize}`"
+          /> 
+          
+          <div class="pagination-container">
+            <el-pagination 
+              @size-change="handleSizeChange"  
+              @current-change="handleCurrentChange"  
+              v-model:page-size="pagination.pageSize"
+              v-model:current-page="pagination.currentPage" 
+              :page-sizes="[5, 10, 20, 50]"
+              :total="pagination.total"
+              layout="total, sizes, prev, pager, next, jumper"
+              :disabled="loading"
+              size="small"
+            />
+          </div>
+        </el-card>
 
-                        <!-- 状态筛选 -->
-                        <el-select v-model="searchParams.status" placeholder="筛选" clearabel>
-                            <el-option label="正常" value="1"></el-option>
-                            <el-option label="禁用" value="0"></el-option>
-                        </el-select>
-
-                        <!-- 搜索按钮 -->
-                         <el-button type="primary" @click="handleSearch">
-                            <el-icon><Search /></el-icon>
-                            搜索
-                         </el-button>
-
-                         <el-button @click="resetSearch">
-                            <el-icon><Refresh /></el-icon>
-                         </el-button>
-                    </div>
-                </el-card>
-                <!-- 用户表格 -->
-                <el-card>
-                    <!-- 批量操作栏 -->
-                    <div class="batch-actions" v-if="selectedUsers.length >0">
-                        <span>已选择{{ selectedUsers.length }}</span>
-                        <el-button type="danger" size="small" @click="batchDelete">批量删除</el-button>
-                        <el-button type="success" size="small" @click="batchEnable">批量启用</el-button>
-                        <el-button type="warning" size="small" @click="batchDisable">批量禁用</el-button>
-                    </div>
-
-                    <UserTable 
-                        :user-list="displayUsers"
-                        :selected-users="selectedUsers"
-                        @selection-change="handleSelectionChange"
-                        @edit="handleEdit"
-                        @delete="handleDelete"
-                        @status-change="handleResetPassword"
-                        @reset-password="handleResetPassword"
-                    /> 
-
-                    <!-- 分页 -->
-                     <div class="pagination-container">
-                        <el-pagination 
-                            @size-change="handleSizeChange"  
-                            @current-change="handleCurrentChange"  
-                            v-model:page-size="pagination.pageSize"
-                            v-model:current-page="pagination.currentPage" 
-                            :current-page="pagination.currentPage"
-                            :page-sizes="[5, 10, 20, 50]"
-                            :page-size="pagination.pageSize"
-                            :total="pagination.total"
-                            layout="total, sizes, prev, pager, next, jumper"
-                        />
-                     </div>
-
-                     <!-- 添加/编辑用户对话框 -->
-                     <UserDialog
-                        v-model="dialog.visible"
-                        :user-data="dialog.userData"
-                        :mode="dialog.mode"
-                        @update:visible="dialog.visible = $event"
-                        @confirm="handleDialogConfirm"
-                      />
-                </el-card>
-
-              </el-main>
-        </el-container>
+        <UserDialog
+          v-model="dialog.visible"
+          :user-data="dialog.userData"
+          :mode="dialog.mode"
+          @update:visible="dialog.visible = $event"
+          @confirm="handleDialogConfirm"
+        />
+      </el-main>
     </el-container>
+  </el-container>
 </template>
+
 <script setup>
-import { ref, reactive, computed, onMounted, watch } from 'vue'
-// import { ElMessage, ElMessageBox } from 'element-plus'
-import Sidebar from '../components/Sidebar.vue'
-import UserTable from '../components/UserTable.vue'
-import UserDialog from '../components/UserDialog.vue'
+import { ref, reactive, onMounted } from 'vue';
+import { ElMessage, ElMessageBox } from 'element-plus';
+import { Plus, Download, Search, Refresh } from '@element-plus/icons-vue';
+import Sidebar from '../components/Sidebar.vue';
+import UserTable from '../components/UserTable.vue';
+import UserDialog from '../components/UserDialog.vue';
+import * as userApi from '../api/userApi.js';
+import { debounce } from 'lodash';
 
-
-//
-const handleSelectionChange = (selection) => {
-  selectedUsers.value = selection
-}
-const handleResetPassword = (user) => {
-  ElMessageBox.confirm(`确定重置用户 "${user.username}" 的密码吗？`, '重置密码').then(() => {
-    ElMessage.success('密码重置成功，新密码已发送到用户邮箱')
-  })
-}
-
-// 搜索参数
+// 搜索参数：status初始化为undefined，避免空字符串转数字异常
 const searchParams = reactive({
-  keyword: '', // 搜索关键词（空字符串表示初始没内容）
-  status: '' // 状态筛选（空表示没选择）
-})
+  keyword: '',
+  status: '',// 改为空字符串，和“全部”选项的value一致
+});
 
 // 分页参数
 const pagination = reactive({
-  currentPage: 1, // 当前页码（默认第1页）
-  pageSize: 10, // 每页显示10条
-  total: 0 // 总条数（初始0，后面会计算）
-})
+  currentPage: 1,
+  pageSize: 10,
+  total: 0,
+  pages: 1 // 后端返回的总页数，可选
+});
 
 // 对话框状态
 const dialog = reactive({
-  visible: false, // 弹窗是否显示（默认不显示）
-  mode: 'add', // 模式：默认是添加
-  userData: null // 用户数据：添加时是空，编辑时是要改的用户
-})
+  visible: false,
+  mode: 'add',
+  userData: null
+});
 
-// 选中的用户
-const selectedUsers = ref([]) // 用ref定义的数组，存选中的用户
+// 状态管理
+const loading = ref(false);
+const selectedUsers = ref([]);
+const userList = ref([]);
 
-// 模拟用户数据（像假的数据库）
-const allUsers = ref([
-  {
-    id: 1,
-    username: 'ACG爱好者',
-    phone: '13800138001',
-    email: 'acg@qq.com',
-    avatar: 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png',
-    tags: '原神,cosplay,咒术回战',
-    status: 1,
-    create_time: '2024-01-15 10:30:00'
-  },
-  {
-    id: 2,
-    username: '动漫达人',
-    phone: '13800138002',
-    email: 'anime@qq.com',
-    avatar: 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png',
-    tags: '火影忍者,海贼王,进击的巨人',
-    status: 1,
-    create_time: '2024-01-20 09:15:00'
-  },
-  {
-    id: 3,
-    username: '游戏玩家',
-    phone: '13800138003',
-    email: 'game@qq.com',
-    avatar: 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png',
-    tags: '英雄联盟,原神,王者荣耀',
-    status: 0,
-    create_time: '2024-02-01 14:20:00'
-  },
-  {
-    id: 4,
-    username: '二次元萌新',
-    phone: '13800138004',
-    email: 'moe@qq.com',
-    avatar: 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png',
-    tags: '初音未来,lovelive,轻音少女',
-    status: 1,
-    create_time: '2024-02-05 16:45:00'
-  },
-  {
-    id: 5,
-    username: 'Cosplay大师',
-    phone: '13800138005',
-    email: 'coser@qq.com',
-    avatar: 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png',
-    tags: 'cosplay,摄影,妆造',
-    status: 1,
-    create_time: '2024-02-10 11:20:00'
-  },
-  {
-    id: 6,
-    username: '漫画收藏家',
-    phone: '13800138006',
-    email: 'comic@qq.com',
-    avatar: 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png',
-    tags: '漫画,收藏,日本动漫',
-    status: 1,
-    create_time: '2024-02-15 13:10:00'
-  },
-  {
-    id: 7,
-    username: '游戏主播',
-    phone: '13800138007',
-    email: 'streamer@qq.com',
-    avatar: 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png',
-    tags: '直播,游戏解说,电竞',
-    status: 1,
-    create_time: '2024-02-20 15:30:00'
-  },
-  {
-    id: 8,
-    username: '声优控',
-    phone: '13800138008',
-    email: 'seiyuu@qq.com',
-    avatar: 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png',
-    tags: '声优,广播剧,日语',
-    status: 0,
-    create_time: '2024-02-25 09:50:00'
-  },
-  {
-    id: 9,
-    username: '手办达人',
-    phone: '13800138009',
-    email: 'figure@qq.com',
-    avatar: 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png',
-    tags: '手办,模型,收藏',
-    status: 1,
-    create_time: '2024-03-01 14:15:00'
-  },
-  {
-    id: 10,
-    username: '同人画师',
-    phone: '13800138010',
-    email: 'artist@qq.com',
-    avatar: 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png',
-    tags: '绘画,同人,插画',
-    status: 1,
-    create_time: '2024-03-05 10:05:00'
-  },
-  {
-    id: 11,
-    username: '轻小说读者',
-    phone: '13800138011',
-    email: 'novel@qq.com',
-    avatar: 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png',
-    tags: '轻小说,文学,日本文学',
-    status: 1,
-    create_time: '2024-03-10 16:40:00'
-  },
-  {
-    id: 12,
-    username: '音乐爱好者',
-    phone: '13800138012',
-    email: 'music@qq.com',
-    avatar: 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png',
-    tags: '动漫音乐,OP,ED',
-    status: 1,
-    create_time: '2024-03-15 12:25:00'
-  },
-  {
-    id: 13,
-    username: '技术宅',
-    phone: '13800138013',
-    email: 'tech@qq.com',
-    avatar: 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png',
-    tags: '编程,技术,动漫',
-    status: 0,
-    create_time: '2024-03-20 08:30:00'
-  },
-  {
-    id: 14,
-    username: '新番追更',
-    phone: '13800138014',
-    email: 'newanime@qq.com',
-    avatar: 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png',
-    tags: '新番,追更,季度动画',
-    status: 1,
-    create_time: '2024-03-25 17:20:00'
-  },
-  {
-    id: 15,
-    username: '老番怀旧',
-    phone: '13800138015',
-    email: 'oldanime@qq.com',
-    avatar: 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png',
-    tags: '怀旧,经典,老番',
-    status: 1,
-    create_time: '2024-03-30 14:55:00'
+/**
+ * 获取用户列表（根据是否有搜索关键词，调用不同接口）
+ * 逻辑：关键词为空 → 调用分页接口；关键词非空 → 调用搜索接口
+ */
+const fetchUsers = async () => {
+  loading.value = true;
+  try {
+    let res;
+    const keyword = searchParams.keyword.trim();
+    const paginationParams = {
+      pageNum: pagination.currentPage,
+      pageSize: pagination.pageSize,
+      // 修复：仅当status有值时才转数字，否则不传该参数
+      status: searchParams.status !== '' ? Number(searchParams.status) : undefined
+    };
+
+    if (keyword) {
+      // 搜索接口：传关键词+分页+状态
+      const searchParamsObj = {
+        ...paginationParams,
+        ...(/^1[3-9]\d{9}$/.test(keyword) 
+          ? { phone: keyword }
+          : /^[\w-]+@([\w-]+\.)+[\w-]+$/.test(keyword)
+            ? { email: keyword }
+            : { username: keyword }
+        )
+      };
+      res = await userApi.searchUsers(searchParamsObj);
+    } else {
+      // 分页接口：传分页+状态
+      res = await userApi.fetchUserList(paginationParams);
+    }
+
+    // 接口返回结构：{total:7, data:[...], pages:1, pageNum:1}
+    userList.value = Array.isArray(res.data) ? res.data : []; 
+    pagination.total = res.total || 0;
+    pagination.pages = res.pages || 1;
+
+    // 调试日志（可选保留）
+    console.log('用户列表数据：', userList.value);
+  } catch (error) {
+    console.error('用户查询失败:', error);
+    userList.value = [];
+    pagination.total = 0;
+  } finally {
+    loading.value = false;
+    console.log('加载状态已关闭：', loading.value); // 新增日志，看控制台是否打印
   }
-])
+};
 
-//计算属性：过滤后的用户
-const filteredUsers = computed(() => {
-  let users = [...allUsers.value] // 先复制一份所有用户
-  
-  // 关键词搜索：如果有输入关键词，就过滤出包含关键词的用户
-  if (searchParams.keyword) {
-    const keyword = searchParams.keyword.toLowerCase() // 转小写，方便不区分大小写搜索
-    users = users.filter(user => 
-      user.username?.toLowerCase().includes(keyword) || // 用户名包含关键词
-      user.phone?.includes(keyword) || // 手机号包含（?表示如果phone不存在也不报错）
-      user.email?.toLowerCase().includes(keyword) || // 邮箱包含
-      user.tags?.toLowerCase().includes(keyword) // 标签包含
-    )
-  }
-  
-  // 状态筛选：如果选择了状态，就只留对应状态的用户
-  if (searchParams.status !== '') {
-    users = users.filter(user => user.status.toString() === searchParams.status)
-  }
-  
-  return users // 返回过滤后的用户
-})
+/**
+ * 防抖搜索函数（延迟300ms执行，避免频繁请求）
+ */
+const debouncedSearch = debounce(() => {
+  pagination.currentPage = 1;
+  fetchUsers();
+}, 300);
 
-// 计算属性：分页显示的用户
-const displayUsers = computed(() => {
-  const start = (pagination.currentPage - 1) * pagination.pageSize // 开始位置（比如第1页从0开始，第2页从10开始）
-  const end = start + pagination.pageSize // 结束位置（比如第1页到10，第2页到20）
-  return filteredUsers.value.slice(start, end) // 从过滤后的用户里，截取这一页要显示的
-}) 
+// 组件挂载时加载数据
+onMounted(() => {
+  fetchUsers();
+});
 
-//监听过滤后的数据，动态更新总条数
-watch(filteredUsers,(newVal)=>{
-  pagination.total=newVal.length;
-},{immediate:true})
-
-
-// 搜索处理
+// 手动搜索
 const handleSearch = () => {
-  pagination.currentPage = 1 // 搜索时回到第1页
-  pagination.total = filteredUsers.value.length // 总条数更新为过滤后的数量
-}
+  pagination.currentPage = 1;
+  fetchUsers();
+};
 
 // 重置搜索
 const resetSearch = () => {
-  searchParams.keyword = '' // 清空关键词
-  searchParams.status = '' // 清空状态筛选
-  pagination.currentPage = 1 // 回到第1页
-  pagination.total =allUsers.value.length;//总条数恢复为原始数据长度
-}
+  searchParams.keyword = '';
+  searchParams.status = ''; // 重置为全部
+  pagination.currentPage = 1;
+  fetchUsers();
+};
+
+// 分页事件：简化逻辑，移除重复判断
+const handleSizeChange = (size) => {
+  pagination.pageSize = size;
+  pagination.currentPage = 1;
+  fetchUsers();
+};
+
+const handleCurrentChange = (page) => {
+  pagination.currentPage = page;
+  fetchUsers();
+};
 
 // 添加用户
 const addUser = () => {
-  dialog.mode = 'add' // 设为添加模式
-  dialog.userData = null // 清空用户数据
-  dialog.visible = true // 显示弹窗
-}
+  dialog.mode = 'add';
+  dialog.userData = null;
+  dialog.visible = true;
+};
 
 // 编辑用户
 const handleEdit = (user) => {
-  console.log('触发编辑', user);
-  dialog.mode = 'edit' // 设为编辑模式
-  dialog.userData = { ...user } // 复制要编辑的用户数据（避免直接改原数据）
-  dialog.visible = true // 显示弹窗
-}
+  dialog.mode = 'edit';
+  dialog.userData = { ...user }; // 深拷贝避免原数据被修改
+  dialog.visible = true;
+};
+
+/**
+ * 对话框确认操作（添加/编辑用户）
+ */
+const handleDialogConfirm = async (userData) => {
+  console.log('子组件传过来的userData：', userData); // 打印看是否有id！
+  alert(userData.id);
+  
+  // 处理参数：类型转换+字段映射
+  const submitData = {
+    id: userData.id, // 编辑时必须传id
+    username: userData.username,
+    phone: userData.phone,
+    email: userData.email,
+    status: Number(userData.status), // 字符串转数字
+    role: Number(userData.role), // 字符串转数字
+    signature: userData.tags || '这个人很懒，什么都没写~' // tags映射到signature
+    // 编辑时不传递password，避免覆盖原有密码
+  };
+
+  // 打印处理后的参数（方便调试）
+  console.log('提交给后端的参数：', submitData);
+  
+  try {
+    if (dialog.mode === 'add') {
+      await userApi.addUser({ ...submitData, password: userData.password }); // 传处理后的参数
+      ElMessage.success('用户添加成功！');
+    } else {
+      await userApi.updateUser(submitData); // 编辑同理
+      ElMessage.success('用户编辑成功！');
+    }
+    dialog.visible = false;
+    fetchUsers();
+  } catch (error) {
+    let msg = dialog.mode === 'add' ? '添加' : '编辑';
+    msg += '失败：';
+    // 捕获唯一约束错误（用户名/手机号/邮箱重复）
+    if (error.message?.includes('uk_username')) msg += '用户名已存在';
+    else if (error.message?.includes('uk_phone')) msg += '手机号已被注册';
+    else if (error.message?.includes('uk_email')) msg += '邮箱已被注册';
+    else msg += error.message || '接口请求错误';
+    ElMessage.error(msg);
+  }
+};
 
 // 删除用户
-const handleDelete = (user) => {
-  // 弹出确认框，问是否确定删除
-  ElMessageBox.confirm(`确定删除用户 "${user.username}" 吗？`, '警告', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'warning',
-  }).then(() => {
-    // 如果点了确定，就从allUsers里删掉这个用户（过滤掉id不等于当前用户id的）
-    allUsers.value = allUsers.value.filter(u => u.id !== user.id)
-    ElMessage.success('删除成功') // 显示成功提示
-  })
-}
+const handleDelete = async (user) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定删除用户 "${user.username}" 吗？`,
+      '警告',
+      { type: 'warning' }
+    );
+    await userApi.deleteUser(user.id);
+    ElMessage.success('删除成功');
+    fetchUsers();
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('删除失败：', error);
+      ElMessage.error('删除失败');
+    }
+  }
+};
+
+// 批量删除
+const batchDelete = async () => {
+  if (selectedUsers.value.length === 0) return;
+  try {
+    await ElMessageBox.confirm(
+      `确定删除选中的 ${selectedUsers.value.length} 条数据吗？`,
+      '警告',
+      { type: 'warning' }
+    );
+    const ids = selectedUsers.value.map(user => user.id);
+    await userApi.batchDeleteUsers(ids);
+    ElMessage.success('批量删除成功');
+    selectedUsers.value = [];
+    fetchUsers();
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('批量删除失败：', error);
+      ElMessage.error('批量删除失败');
+    }
+  }
+};
+
+// 批量状态更新
+const batchEnable = async () => {
+  await batchUpdateStatus(1, '启用');
+};
+
+const batchDisable = async () => {
+  await batchUpdateStatus(0, '禁用');
+};
+
+const batchUpdateStatus = async (status, statusText) => {
+  if (selectedUsers.value.length === 0) return;
+  try {
+    const ids = selectedUsers.value.map(user => user.id);
+    await userApi.batchUpdateStatus(ids, status);
+    ElMessage.success(`批量${statusText}成功`);
+    selectedUsers.value = [];
+    fetchUsers();
+  } catch (error) {
+    console.error(`批量${statusText}失败：`, error);
+    ElMessage.error(`批量${statusText}失败`);
+  }
+};
+
+/**
+ * 单个用户状态修改（启用/禁用）
+ */
+const handleStatusChange = async (user) => {
+  const originalStatus = user.status;
+  try {
+    await userApi.updateUserStatus(user.id, user.status);
+    ElMessage.success(`状态更新为：${user.status === 1 ? '启用' : '禁用'}`);
+  } catch (error) {
+    // 回滚状态：确保视图与后端一致
+    const index = userList.value.findIndex(u => u.id === user.id);
+    if (index !== -1) {
+      userList.value[index].status = originalStatus;
+    }
+    ElMessage.error(`状态更新失败：${error.message || '接口请求错误'}`);
+  }
+};
+
+// 重置密码
+const handleResetPassword = async (user) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定重置用户 "${user.username}" 的密码吗？`,
+      '重置密码'
+    );
+    await userApi.resetUserPassword(user.id);
+    ElMessage.success('密码重置成功');
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('重置密码失败：', error);
+      ElMessage.error('重置密码失败');
+    }
+  }
+};
 
 // 导出数据
 const exportData = () => {
-  ElMessage.info('导出功能开发中...')
-}
-
-// 1. 分页-每页条数变化（handleSizeChange）
-const handleSizeChange = (size) => {
-  // 当每页显示条数变化时，重置当前页为第1页
-  pagination.pageSize = size;
-  pagination.currentPage = 1;
+  ElMessage.info('导出功能开发中...');
 };
 
-// 2. 分页-页码变化（handleCurrentChange）
-const handleCurrentChange = (page) => {
-  // 当页码变化时，更新当前页
-  pagination.currentPage = page;
+// 选中变化：确保始终是数组
+const handleSelectionChange = (val) => {
+  selectedUsers.value = val || [];
 };
-
-// 3. 对话框确认（handleDialogConfirm）
-const handleDialogConfirm = (userData) => {
-  if (dialog.mode === 'add') {
-    // 添加新用户逻辑（生成新ID，补充默认字段）
-    const newUser = {
-      id: Date.now(), // 临时用时间戳当ID，实际应从后端获取
-      ...userData,
-      create_time: new Date().toLocaleString(), // 注册时间
-      status: 1, // 默认正常状态
-      role: 0 // 默认普通用户
-    };
-    allUsers.value.unshift(newUser); // 添加到列表头部
-    ElMessage.success('用户添加成功！');
-  } else {
-    // 编辑用户逻辑（更新已有用户）
-    const index = allUsers.value.findIndex(u => u.id === userData.id);
-    if (index !== -1) {
-      allUsers.value[index] = { ...allUsers.value[index], ...userData };
-      ElMessage.success('用户更新成功！');
-    }
-  }
-  dialog.visible = false; // 关闭对话框
-};
-
 </script>
+
 <style scoped>
 .header-content {
-  display: flex; /* 让里面的内容左右排列 */
-  justify-content: space-between; /* 左右两边对齐（标题在左，按钮在右） */
-  align-items: center; /* 上下居中 */
-  height: 100%; /* 占满顶部栏高度 */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 100%;
 }
 
 .header-actions {
-  display: flex; /* 按钮横向排列 */
-  gap: 10px; /* 按钮之间间距10px */
+  display: flex;
+  gap: 10px;
 }
 
+/* 搜索区域样式优化 */
 .search-toolbar {
-  display: flex; /* 搜索框、选择器、按钮横向排列 */
-  gap: 10px; /* 之间间距10px */
-  align-items: center; /* 上下居中 */
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+}
+
+/* 统一输入框/下拉框样式 */
+:deep(.el-input__wrapper),
+:deep(.el-select__wrapper) {
+  border-radius: 4px;
+  box-shadow: none;
+}
+
+:deep(.el-input--small .el-input__wrapper),
+:deep(.el-select--small .el-select__wrapper) {
+  height: 32px;
 }
 
 .batch-actions {
-  padding: 10px; /* 内边距10px */
-  background: #f0f9ff; /* 浅蓝色背景 */
-  border: 1px solid #e1f5fe; /* 浅蓝边框 */
-  border-radius: 4px; /* 圆角 */
-  margin-bottom: 10px; /* 下面间距10px */
-  display: flex; /* 内容横向排列 */
-  align-items: center; /* 上下居中 */
-  gap: 10px; /* 内容之间间距 */
+  padding: 10px 0;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid #f0f0f0;
 }
 
 .pagination-container {
-  margin-top: 20px; /* 上面间距20px */
-  text-align: right; /* 分页靠右显示 */
+  margin-top: 20px;
+  text-align: right;
+}
+
+/* 卡片圆角优化 */
+:deep(.el-card) {
+  border-radius: 8px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
 }
 </style>

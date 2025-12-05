@@ -9,8 +9,8 @@ const routes = [
   { path: '/register', component: () => import('../views/Register.vue') },
   { path: '/user-manage', component: () => import('../views/UserList.vue') }, // 用户管理
   { path: '/dashboard', component: () => import('../views/Dashboard.vue') }, // 仪表盘
-  { path: '/content-manage', component: () => import('../views/ContentManage.vue') }, // 内容管理
-  { path: '/circle-manage', component: () => import('../views/CircleManagement.vue') }, // 兴趣圈子
+//   { path: '/content-manage', component: () => import('../views/ContentList.vue') }, // 内容管理
+//   { path: '/interest-circle', component: () => import('../views/InterestCircle.vue') }, // 兴趣圈子
 ]
 
 // 创建路由实例

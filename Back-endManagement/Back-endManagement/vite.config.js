@@ -1,7 +1,7 @@
 import { fileURLToPath, URL } from 'node:url'
+
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import path from 'path'
 import vueDevTools from 'vite-plugin-vue-devtools'
 import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
@@ -24,17 +24,4 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url))
     },
   },
-  // 👇 新增代理配置（关键）
-  server: {
-    port: 5173, // 前端端口（保持不变）
-    proxy: {
-      // 匹配所有以/api开头的请求，转发到后端
-      '/api': {
-        target: 'http://localhost:8081', // 后端真实地址（8081端口）
-        changeOrigin: true, // 开启跨域转发（必须）
-        secure: false, // 后端是http时设为false，https设为true
-        ws: false // 不需要WebSocket的话关闭
-      }
-    }
-  }
 })

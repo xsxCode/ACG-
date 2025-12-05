@@ -1,185 +1,212 @@
 <template>
   <div class="table-container">
-    <!-- 用户表格 -->
-    <el-table :data="userList" stripe border class="user-table">
+    <el-table 
+      :data="Array.isArray(userList) ? userList : []" 
+      stripe 
+      border 
+      class="user-table"
+      :loading="loading"
+      @selection-change="handleSelectionChange"
+      v-loading="loading"
+      :row-key="row => row.id"
+      ref="tableRef"  
+    >
+      <!-- 多选列 -->
+      <el-table-column type="selection" width="55" align="center" :selectable="row => !row.isDeleted"  />
       
       <!-- 序号列 -->
-      <el-table-column type="index" label="序号" width="80" />
+      <el-table-column type="index" label="序号" width="80" align="center" />
 
       <!-- 用户名列 -->
       <el-table-column prop="username" label="用户名" width="150">
         <template #default="scope">
           <div class="user-info">
-            <!-- 用户头像 -->
             <el-avatar 
-              :src="scope.row.avatar " 
+              :src="scope.row.avatar" 
               class="avatar" 
-            />
+              :alt="scope.row.username"
+            >
+              {{ scope.row.username.substring(0, 1) }}
+            </el-avatar>
             <span class="username">{{ scope.row.username }}</span>
           </div>
         </template>
       </el-table-column>
 
       <!-- 手机号列 -->
-      <el-table-column prop="phone" label="手机号" width="150" />
+      <el-table-column prop="phone" label="手机号" width="150" align="center" />
 
       <!-- 兴趣标签列 -->
-      <el-table-column prop="tags" label="兴趣标签" width="200">
+      <el-table-column label="兴趣标签" width="200">
         <template #default="scope">
-          <!-- 循环显示标签 -->
           <el-tag 
-            v-for="tag in scope.row.tags.split(',')" 
-            :key="tag" 
             size="small" 
             class="tag-item"
+            type="info"
+            effect="light"
           >
-            {{ tag }}
+            {{ scope.row.signature || '无' }}
           </el-tag>
         </template>
       </el-table-column>
 
-      <!-- 注册时间列 -->
-      <el-table-column prop="create_time" label="注册时间" width="180" />
-
-      <!-- 状态列 -->
-      <el-table-column prop="status" label="状态" width="100">
+      <!-- 注册时间列：格式化时间 -->
+      <el-table-column prop="createTime" label="注册时间" width="180" align="center">
         <template #default="scope">
-          <!-- 状态开关 -->
+          {{ scope.row.createTime ? new Date(scope.row.createTime).toLocaleString() : '-' }}
+        </template>
+      </el-table-column>
+
+      <!-- 状态列（数字类型匹配） -->
+      <el-table-column label="状态" width="100" align="center">
+        <template #default="scope">
           <el-switch 
             v-model="scope.row.status" 
-            active-value="1" 
-            inactive-value="0" 
-            @change="handleStatusChange(scope.row)" 
+            :active-value="1" 
+            :inactive-value="0" 
+            @change="() => handleStatusChange(scope.row)" 
+            active-color="#67C23A"
+            inactive-color="#F56C6C"
           />
         </template>
       </el-table-column>
 
       <!-- 操作列 -->
-      <<!-- 表格操作列按钮：用自定义样式替代 type 属性 -->
-<el-table-column label="操作" width="200">
-  <template #default="scope">
-    <!-- 编辑按钮：自定义文本样式 -->
-    <el-button 
-      size="small" 
-      style="background: transparent; border: none; color: #409eff; padding: 0 8px;"
-      @click="$emit('edit', scope.row)"
-    >
-      编辑
-    </el-button>
+      <el-table-column label="操作" width="240" align="center"> <!-- 加宽避免按钮挤在一起 -->
+          <template #default="scope">
+              <div class="operation-group">
+                <!-- 编辑按钮：主色+编辑图标 -->
+                <el-button 
+                  size="small" 
+                  type="primary" 
+                  text
+                  @click="$emit('edit', scope.row)"
+                  icon="Edit"
+                >
+                  编辑
+                </el-button>
 
-    <!-- 删除按钮：自定义红色文本样式 -->
-    <el-button 
-      size="small" 
-      style="background: transparent; border: none; color: #f56c6c; padding: 0 8px;"
-      @click="$emit('delete', scope.row)"
-    >
-      删除
-    </el-button>
+                <!-- 删除按钮：危险色+删除图标 -->
+                <el-button 
+                  size="small" 
+                  type="danger" 
+                  text
+                  @click="$emit('delete', scope.row)"
+                  icon="Delete"
+                >
+                  删除
+                </el-button>
 
-    <!-- 重置密码按钮：自定义文本样式 -->
-    <el-button 
-      size="small" 
-      style="background: transparent; border: none; color: #409eff; padding: 0 8px;"
-      @click="$emit('reset-password', scope.row)"
-    >
-      重置密码
-    </el-button>
-  </template>
-</el-table-column>
-    </el-table>
-
-    <!-- 分页控件 -->
-    <!-- <div class="pagination-container">
-      <el-pagination 
-        v-model:current-page="currentPage" 
-        v-model:page-size="pageSize" 
-        :page-sizes="[10, 20, 50]" 
-        :total="total" 
-        layout="total, sizes, prev, pager, next, jumper" 
-        @size-change="handleSizeChange" 
-        @current-change="handleCurrentChange" 
-      />
-    </div> -->
+                <!-- 重置密码按钮：警告色+钥匙图标 -->
+                <el-button 
+                  size="small" 
+                  type="warning" 
+                  text
+                  @click="$emit('reset-password', scope.row)"
+                  icon="Key"
+                >
+                  重置密码
+                </el-button>
+              </div>
+            </template>
+          </el-table-column>
+      </el-table>
   </div>
 </template>
 
 <script setup>
-import { ref, defineProps, defineEmits } from 'vue'
-// import { ElMessage } from 'element-plus'
+// 补充导入缺失的API
+import { ref, defineProps, defineEmits, watch } from 'vue'
+import { ElMessage } from 'element-plus'
 import { debounce } from 'lodash'
 
-// 接收父组件传递的用户列表数据
+// 接收父组件参数
 const props = defineProps({
   userList: {
     type: Array,
-    required: true
+    required: true,
+    default: () => []
+  },
+  selectedUsers: {
+    type: Array,
+    required:true,
+    default: () => []
+  },
+  loading: {
+    type: Boolean,
+    default: false
   }
 })
 
-// 定义发送给父组件的事件
-const emit = defineEmits(['edit', 'delete'])
+// 定义事件
+const emit = defineEmits([
+  'selection-change', 
+  'edit', 
+  'delete', 
+  'reset-password',
+  'status-change'
+])
 
-// 分页数据
-const currentPage = ref(1)
-const pageSize = ref(10)
-const total = ref(props.userList.length)
+// 定义表格Ref（模板中已绑定）
+const tableRef = ref(null);
 
-// 状态切换处理
-const handleStatusChange = debounce(
-  async (user) => {
-    try {
-      // 这里应该调用API更新状态
-      console.log('更新用户状态:', user.id, user.status)
-      ElMessage.success('状态更新成功')
-    } catch (error) {
-      // 如果出错，恢复原来的状态
-      user.status = user.status === '1' ? '0' : '1'
-      ElMessage.error('状态更新失败')
+// 监听selectedUsers变化，同步表格选中状态（避免内部数据不一致）
+watch(
+  () => props.selectedUsers,
+  (newVal) => {
+    if (tableRef.value && Array.isArray(newVal)) {
+      // 清空现有选中
+      tableRef.value.clearSelection();
+      // 重新选中指定行（通过row-key匹配，更可靠）
+      newVal.forEach(row => {
+        tableRef.value.toggleRowSelection(row, true);
+      });
     }
-  },300
-)   
+  },
+  { immediate: true, deep: true }
+);
 
-// 分页大小改变
-const handleSizeChange = (val) => {
-  pageSize.value = val
-  // 这里可以通知父组件重新获取数据
+// 多选事件传递
+const handleSelectionChange = (val) => {
+  emit('selection-change', val)
 }
 
-// 当前页码改变
-const handleCurrentChange = (val) => {
-  currentPage.value = val
-  // 这里可以通知父组件重新获取数据
-}
+// 状态切换（防抖+增加提示反馈）
+const handleStatusChange = debounce((user) => {
+  emit('status-change', user)
+  ElMessage.info(`用户${user.status === 1 ? '启用' : '禁用'}中...`)
+}, 300)
 </script>
 
 <style scoped>
 .user-info {
   display: flex;
   align-items: center;
-  gap: 8px;  /* 头像和文字之间的间距 */
+  gap: 8px;
 }
-
 .avatar {
   width: 30px;
   height: 30px;
 }
-
 .tag-item {
   margin-right: 4px;
   background-color: #f0f2f5;
   color: #4096ff;
 }
-
-.edit-btn {
-  color: #4096ff;
+.table-container {
+  width: 100%;
 }
-
-.delete-btn {
-  color: #f56c6c;
+/* 优化操作按钮间距 */
+.operation-group {
+  display: flex;
+  gap: 4px; /* 按钮之间加间距 */
+  justify-content: center;
 }
-
-.pagination-container {
-  margin-top: 20px;
-  text-align: right;
+/* 修复小屏幕下标签换行问题 */
+.tag-item {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
 }
 </style>

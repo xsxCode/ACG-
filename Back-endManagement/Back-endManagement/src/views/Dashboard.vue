@@ -114,54 +114,129 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick } from 'vue';
-import { useRoute } from 'vue-router'; // 新增
+import { ref, onMounted } from 'vue';
 import * as echarts from 'echarts';
-import Sidebar from '../components/Sidebar.vue';
+import { House, User, Document, Collection, Setting } from '@element-plus/icons-vue';
+import Sidebar from '@/components/Sidebar.vue';
 
-// 路由联动激活菜单
-const route = useRoute();
-const activeMenu = ref(route.path);
+// 侧边栏激活菜单
+const activeMenu = ref('/dashboard');
 
-// 主题色常量
-const themeColor = {
-  primary: '#409EFF',
-  secondary: '#e5e9f2'
-};
+// 图表容器 Ref
+const lineChartRef = ref(null);
+const pieChartRef = ref(null);
+const barChartRef = ref(null);
+const progressRef = ref(null);
 
-// 图表配置抽离
-const lineChartOption = { /* ... */ };
-const pieChartOption = { /* ... */ };
-const barChartOption = { /* ... */ };
-const progressChartOption = { /* ... */ };
+// 时间线数据
+const timelineData = ref([
+  {
+    time: '2023-03-24',
+    avatar: 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png',
+    content: 'ACG碰碰部落-最新动态列表'
+  },
+  {
+    time: '2023-03-25',
+    avatar: 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png',
+    content: 'ACG碰碰部落-社区活动更新'
+  },
+  {
+    time: '2023-03-26',
+    avatar: 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png',
+    content: 'ACG概念馆整理'
+  }
+]);
 
-// 其他变量保持不变...
-
-// 初始化图表（使用nextTick）
-onMounted(async () => {
-  await nextTick();
-  initCharts();
-  window.addEventListener('resize', handleResize);
-});
-
-// 图表初始化函数（使用抽离的配置）
+// 初始化 ECharts 图表
 const initCharts = () => {
-  if (lineChartRef.value) {
-    lineChartInstance.value = echarts.init(lineChartRef.value);
-    lineChartInstance.value.setOption(lineChartOption);
-  }
-  if (pieChartRef.value) {
-    pieChartInstance.value = echarts.init(pieChartRef.value);
-    pieChartInstance.value.setOption(pieChartOption);
-  }
-  // 其他图表同理...
+  // 折线图（圈子管理）
+  const lineChart = echarts.init(lineChartRef.value);
+  lineChart.setOption({
+    xAxis: { type: 'category', data: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] },
+    yAxis: { type: 'value' },
+    series: [{
+      data: [20, 30, 40, 50, 60, 70, 80, 75, 85, 90],
+      type: 'line',
+      smooth: true,
+      itemStyle: { color: '#409EFF' },
+      areaStyle: {
+        color: {
+          type: 'linear',
+          x: 0, y: 0, x2: 0, y2: 1,
+          colorStops: [{ offset: 0, color: 'rgba(64, 158, 255, 0.2)' }, { offset: 1, color: 'rgba(64, 158, 255, 0)' }]
+        }
+      }
+    }],
+    grid: { left: '3%', right: '4%', bottom: '3%', top: '20%', containLabel: true }
+  });
+
+  // 饼图
+  const pieChart = echarts.init(pieChartRef.value);
+  pieChart.setOption({
+    series: [{
+      type: 'pie',
+      radius: ['40%', '70%'],
+      itemStyle: { borderRadius: 10, borderColor: '#fff', borderWidth: 2 },
+      data: [
+        { value: 60, name: '社团', itemStyle: { color: '#409EFF' } },
+        { value: 40, name: '主份', itemStyle: { color: '#e5e9f2' } }
+      ]
+    }]
+  });
+
+  // 柱状图
+  const barChart = echarts.init(barChartRef.value);
+  barChart.setOption({
+    xAxis: { type: 'category', data: ['104', '214', '34', '34', '64', '84', '204'] },
+    yAxis: { type: 'value' },
+    series: [
+      { data: [20, 40, 60, 70, 90, 50, 30], type: 'bar', itemStyle: { color: '#409EFF' } },
+      { data: [10, 20, 30, 40, 50, 20, 10], type: 'bar', itemStyle: { color: '#e5e9f2' } }
+    ],
+    grid: { left: '3%', right: '4%', bottom: '3%', top: '20%', containLabel: true }
+  });
+
+  // 进度条图表
+  const progressChart = echarts.init(progressRef.value);
+  progressChart.setOption({
+    xAxis: {
+      type: 'category',
+      data: ['用户管理与内容管理', '用户管理', '用户', '内容管理', '功能', '进度'],
+      axisTick: { show: false },
+      axisLine: { show: false },
+      axisLabel: { color: '#606266' }
+    },
+    yAxis: { show: false },
+    series: [{
+      type: 'bar',
+      data: [90, 80, 70, 60, 50, 40],
+      barWidth: 10,
+      barGap: '-100%',
+      itemStyle: {
+        color: ({ dataIndex }) => {
+          const colors = ['#409EFF', '#409EFF', '#409EFF', '#409EFF', '#e5e9f2', '#e5e9f2'];
+          return colors[dataIndex];
+        }
+      }
+    }],
+    grid: { left: '0', right: '0', bottom: '0', top: '0', containLabel: true }
+  });
 };
 
-// 其他函数保持不变...
+// 页面挂载后初始化图表
+onMounted(() => {
+  initCharts();
+  // 监听窗口 resize，保证图表自适应
+  window.addEventListener('resize', () => {
+    echarts.getInstanceByDom(lineChartRef.value)?.resize();
+    echarts.getInstanceByDom(pieChartRef.value)?.resize();
+    echarts.getInstanceByDom(barChartRef.value)?.resize();
+    echarts.getInstanceByDom(progressRef.value)?.resize();
+  });
+});
 </script>
 
 <style scoped>
-/* 原样式 + 响应式优化 */
 .dashboard-container {
   height: 100vh;
   display: flex;
@@ -178,8 +253,6 @@ const initCharts = () => {
 .chart-container {
   width: 100%;
   height: 250px;
-  flex: 1;
-  min-height: 200px;
 }
 
 .card-header {
@@ -196,21 +269,5 @@ const initCharts = () => {
 
 .timeline-card >>> .el-avatar {
   margin-right: 10px;
-}
-
-.el-card {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-/* 响应式适配 */
-@media (max-width: 768px) {
-  .chart-container {
-    height: 200px;
-  }
-  .card-row, .chart-row {
-    margin-bottom: 15px;
-  }
 }
 </style>
