@@ -21,7 +21,7 @@
     </el-menu-item>
 
     <!-- 帖子管理 → 用Arrow分类下的Document图标（对应帖子/文档） -->
-    <el-menu-item index="/content-manage">
+    <el-menu-item index="/post-manage">
       <el-icon><Document /></el-icon>
       <span>帖子管理</span>
     </el-menu-item>

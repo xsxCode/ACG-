@@ -1,10 +1,10 @@
 // src/api/contentApi.js
-import request from '@/utils/request'; // 假设你有封装好的axios实例（下面会提）
+import request from '../utils/request'; // 假设你有封装好的axios实例（下面会提）
 
 // 1. 获取帖子列表（分页+筛选）
 export function fetchPosts(params) {
   return request({
-    url: '/api/v1/post/list', // 后端的帖子列表接口地址
+    url: '/api/v1/post/page', // 后端的帖子列表接口地址
     method: 'get',
     params // 包含分页、筛选条件
   });
@@ -51,3 +51,24 @@ export function editPost(id, data) {
     data
   });
 }
+
+// 新增：获取所有圈子列表
+export const fetchCircleList = () => {
+  return request({
+    url: '/api/v1/circle/all',
+    method: 'get'
+  });
+};
+
+// 新增：获取所有标签列表
+export const fetchTagList = () => {
+  return request({
+    url: '/api/v1/tag/all',
+    method: 'get'
+  });
+};
+
+
+
+
+

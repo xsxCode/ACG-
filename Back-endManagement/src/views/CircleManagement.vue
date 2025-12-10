@@ -145,8 +145,8 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import Sidebar from '@/components/Sidebar.vue';
-import * as circleApi from '@/api/circleApi.js';
+import Sidebar from '../components/Sidebar.vue';
+import * as circleApi from '../api/circleApi.js';
 
 // --- 表格和分页状态 ---
 const tableData = ref([]);
@@ -194,15 +194,25 @@ const fetchCircleList = async () => {
   try {
     const params = {
       name: searchForm.name,
-      status: searchForm.status,
+      // 后端没返回status，暂时注释status筛选
+      // status: searchForm.status,
       dateRange: searchForm.dateRange,
       page: currentPage.value,
       pageSize: pageSize.value,
     };
     
     const response = await circleApi.fetchCircles(params);
-    tableData.value = response.circles;
-    total.value = response.total;
+    console.log('后端返回原始数据：', response); // 验证数据是否拿到
+    // 核心：字段映射（后端字段 → 前端表格字段）
+    tableData.value = response.circles.map(item => ({
+      id: item.id,
+      name: item.name || '', // 圈子名称（匹配）
+      founder: item.creator_id || '未知', // 后端是creator_id → 前端founder
+      memberCount: item.member_count || 0, // 后端member_count → 前端memberCount
+      status: 'active', // 后端没返回status，先给默认值（后续让后端补充）
+      createTime: item.create_time || '' // 后端create_time → 前端createTime
+    }));
+    total.value = response.total; // 总数映射
   } catch (error) {
     ElMessage.error('获取圈子列表失败: ' + error.message);
   } finally {
