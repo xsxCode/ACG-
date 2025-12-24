@@ -44,11 +44,11 @@ export const addUser = async (data) => {
  * @param {Number} id - 用户ID
  * @param {Object} data - 更新的用户信息
  */
-export const updateUser = async (userData) => {
+export const updateUser = async (user) => {
   return service({
-    url: `/api/v1/user/${userData.id}`,
+    url: `/api/v1/user/update`,
     method: 'PUT',
-    data: userData,
+    data: user,
     showLoading: true
   });
 };
@@ -101,5 +101,17 @@ export const resetUserPassword = async (id) => {
     url: `/api/v1/user/${id}/reset-pwd`,
     method: 'POST',
     showLoading: true
+  });
+};
+
+/**
+ * 根据作者ID查询名称
+ * @param {Number} userId - 作者ID
+ */
+export const getUsernameById = async (userId) => {
+  return service({
+    url: `/api/v1/user/name/${userId}`,
+    method: 'GET',
+    showLoading: false // 保持和其他查询接口一致
   });
 };

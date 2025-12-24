@@ -5,9 +5,12 @@
 
     <!-- 右侧内容主区域 -->
     <div class="content-wrapper">
+      <!-- 页面标题（与示例"兴趣圈子管理"风格一致） -->
+      <div class="page-title">标签管理</div>
+
       <!-- 顶部操作栏 -->
       <div class="top-operation-bar">
-        <!-- 搜索框（新增搜索按钮，确保搜索触发） -->
+        <!-- 搜索框 -->
         <el-input
           v-model="searchForm.keyword"
           placeholder="请输入标签名称搜索"
@@ -38,7 +41,7 @@
           <el-empty
             image-size="120"
             description="暂无标签数据，点击新增创建第一个标签吧～"
-          />
+          ></el-empty>
         </div>
 
         <!-- 加载中状态 -->
@@ -64,30 +67,37 @@
             align="center"
             :formatter="formatTime"
           />
-          <el-table-column label="操作" width="180" align="center">
+          <el-table-column label="操作" width="280" align="center">
             <template #default="scope">
-              <el-button
-                size="small"
-                type="primary"
-                icon="el-icon-edit"
-                @click="openEditDialog(scope.row)"
-              >
-                编辑
-              </el-button>
-              <el-button
-                size="small"
-                type="danger"
-                icon="el-icon-delete"
-                @click="handleDelete(scope.row)"
-              >
-                删除
-              </el-button>
+              <!-- 操作按钮组：确保删除按钮红色生效 -->
+              <div class="operation-btn-group">
+                <!-- 编辑按钮：蓝色文本按钮 -->
+                <el-button
+                  size="small"
+                  type="text"
+                  text-color="#409EFF"
+                  @click="openEditDialog(scope.row)"
+                >
+                  <el-icon class="icon-mr"><Edit /></el-icon>编辑
+                </el-button>
+
+                <!-- 删除按钮：danger类型（自动红色）+ 强制红色文字 -->
+                <el-button
+                  size="small"
+                  type="text"
+                  danger
+                  style="color: #F56C6C !important;"
+                  @click="handleDelete(scope.row)"
+                >
+                  <el-icon class="icon-mr"><Delete /></el-icon>删除
+                </el-button>
+              </div>
             </template>
           </el-table-column>
         </el-table>
       </div>
 
-      <!-- 分页区域（修复分页逻辑） -->
+      <!-- 分页区域 -->
       <div class="pagination-container">
         <!-- 分页统计 + 条数选择 -->
         <div class="pagination-left">
@@ -133,7 +143,7 @@
             :disabled="pagination.pageNum >= totalPage"
           />
 
-          <!-- 前往输入框（修复联动） -->
+          <!-- 前往输入框 -->
           <span class="goto-text">前往</span>
           <el-input-number
             v-model="jumpPageNum"
@@ -189,7 +199,8 @@
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { Search } from '@element-plus/icons-vue';
+// 正确的图标导入
+import { Search, Edit, Delete } from '@element-plus/icons-vue';
 import Sidebar from '@/components/Sidebar.vue';
 import { tagApi } from '@/api/tag';
 
@@ -262,25 +273,21 @@ const formatTime = (row) => {
 };
 
 // ========== 核心方法 ==========
-// 获取标签列表（核心：传递所有查询参数）
+// 获取标签列表（★★★ 主要修改这里 ★★★）
 const fetchTagList = async () => {
   try {
     loading.value = true;
-    // 构建完整的查询参数
     const params = {
-      keyword: searchForm.keyword.trim(),
+      // 改动1：参数名从 keyword → name（匹配后端分页接口的参数名）
+      name: searchForm.keyword.trim(),
       pageNum: pagination.pageNum,
       pageSize: pagination.pageSize,
     };
-    console.log('请求参数：', params); // 调试用，可删除
-    
+    // 调用后端分页接口（tagApi.getTagList 需确保指向你的后端分页接口 /api/v1/tag/page）
     const res = await tagApi.getTagList(params);
-    
-    // 适配后端返回格式
     tagList.value = res.data || [];
-    total.value = res.count || 0;
-    
-    // 同步跳转页码输入框
+    // 改动2：总条数从 res.count → res.total（匹配后端分页接口的返回字段）
+    total.value = res.total || 0;
     jumpPageNum.value = pagination.pageNum;
   } catch (error) {
     console.error('获取标签列表失败：', error);
@@ -292,16 +299,16 @@ const fetchTagList = async () => {
   }
 };
 
-// 搜索功能（重置页码为1）
+// 搜索功能
 const handleSearch = () => {
-  pagination.pageNum = 1; // 搜索时回到第一页
+  pagination.pageNum = 1;
   fetchTagList();
 };
 
 // 条数切换
 const handleSizeChange = (val) => {
   pagination.pageSize = val;
-  pagination.pageNum = 1; // 切换条数回到第一页
+  pagination.pageNum = 1;
   fetchTagList();
 };
 
@@ -364,7 +371,6 @@ const openEditDialog = (row) => {
 const submitForm = async () => {
   try {
     await formRef.value.validate();
-    
     let res;
     if (dialogType.value === 'add') {
       res = await tagApi.addTag({
@@ -376,10 +382,10 @@ const submitForm = async () => {
         name: formData.name.trim()
       });
     }
-    
     ElMessage.success(dialogType.value === 'add' ? '新增标签成功' : '编辑标签成功');
     dialogVisible.value = false;
-    fetchTagList(); // 提交后刷新列表
+    // 提交后重新拉取分页列表
+    fetchTagList();
   } catch (error) {
     if (error.name !== 'ValidationError') {
       console.error('提交标签失败：', error);
@@ -400,10 +406,10 @@ const handleDelete = async (row) => {
         type: 'warning',
       }
     );
-    
     await tagApi.deleteTag(row.id);
     ElMessage.success('删除标签成功');
-    fetchTagList(); // 删除后刷新列表
+    // 删除后重新拉取分页列表
+    fetchTagList();
   } catch (error) {
     if (error !== 'cancel') {
       console.error('删除标签失败：', error);
@@ -413,113 +419,232 @@ const handleDelete = async (row) => {
 };
 
 // ========== 监听与生命周期 ==========
-// 监听总页数变化，修正跳转页码范围
 watch(totalPage, (newVal) => {
   if (jumpPageNum.value > newVal) {
     jumpPageNum.value = newVal;
   }
 });
 
-// 监听分页参数变化（可选，自动刷新）
-watch([() => pagination.pageNum, () => pagination.pageSize], () => {
-  // 防止重复请求，可根据需要开启
-  // fetchTagList();
-});
-
-// 页面加载时初始化
 onMounted(() => {
   fetchTagList();
 });
 </script>
 
 <style scoped>
-/* 样式部分保持不变 */
+/* 全局样式重置 & 基础布局 */
 .tag-management-container {
   display: flex;
   height: 100vh;
-  background-color: #f5f7fa;
+  background-color: #f8f9fa;
+  font-size: 14px;
+  color: #333;
 }
 
+/* 右侧内容区 */
 .content-wrapper {
   flex: 1;
-  padding: 24px;
+  padding: 24px 32px;
   overflow-y: auto;
   box-sizing: border-box;
 }
 
+/* 页面标题（与示例风格一致） */
+.page-title {
+  font-size: 20px;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 24px;
+}
+
+/* 顶部操作栏 */
 .top-operation-bar {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  margin-bottom: 20px;
-  gap: 16px;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  gap: 20px;
 }
 
+/* 标签列表容器 */
 .tag-list-container {
   background-color: #fff;
-  border-radius: 4px;
-  padding: 16px;
-  margin-bottom: 20px;
-  min-height: 400px;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+  min-height: 420px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  border: 1px solid #f0f2f5;
 }
 
+/* 无数据状态 */
 .empty-state {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 400px;
+  height: 420px;
 }
 
+/* 加载中状态 */
 .loading-state {
-  padding: 20px;
+  padding: 24px;
 }
 
+/* 操作按钮组：示例样式适配 */
+.operation-btn-group {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+}
+
+/* 图标与文字间距 */
+.icon-mr {
+  margin-right: 4px;
+}
+
+/* 确保文本按钮样式不被覆盖 */
+:deep(.el-button--text) {
+  --el-button-hover-bg-color: transparent;
+  font-size: 14px;
+}
+/* 强制删除按钮红色（优先级最高） */
+:deep(.el-button--text.danger) {
+  color: #F56C6C !important;
+}
+/* 编辑按钮蓝色 */
+:deep(.el-button--text) {
+  color: #409EFF !important;
+}
+
+/* 表格样式优化 */
+:deep(.el-table) {
+  --el-table-row-hover-bg-color: #f5f8ff;
+  --el-table-header-text-color: #1f2937;
+  --el-table-text-color: #4b5563;
+}
+
+:deep(.el-table__cell) {
+  padding: 16px 0 !important;
+  border-bottom: 1px solid #f0f2f5;
+}
+
+:deep(.el-table th.el-table__cell) {
+  padding: 14px 0 !important;
+  background-color: #f9fafb;
+}
+
+/* 分页容器 */
 .pagination-container {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: space-between;
   background-color: #fff;
-  padding: 16px;
-  border-radius: 4px;
-  gap: 20px;
+  padding: 20px 24px;
+  border-radius: 12px;
+  gap: 24px;
   flex-wrap: wrap;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  border: 1px solid #f0f2f5;
 }
 
+/* 分页左侧区域 */
 .pagination-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 20px;
 }
 
+/* 分页右侧区域 */
 .pagination-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
 }
 
+/* 页码样式优化 */
 .page-number {
-  padding: 2px 8px;
+  padding: 6px 12px;
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: 14px;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
 }
-
+.page-number:hover {
+  background-color: #eff6ff;
+  color: #3b82f6;
+  border-color: #dbeafe;
+}
 .page-number.active {
-  color: #1989fa;
-  font-weight: bold;
-  background-color: #f5f7fa;
+  color: #fff;
+  font-weight: 600;
+  background-color: #3b82f6;
+  border-color: #3b82f6;
 }
 
-.goto-text, .page-text, .total-text {
+/* 文本样式统一 */
+.goto-text, .page-text {
   font-size: 14px;
-  color: #666;
+  color: #6b7280;
+}
+.total-text {
+  font-size: 14px;
+  color: #4b5563;
+  font-weight: 500;
 }
 
+/* 弹窗样式微调 */
+:deep(.el-dialog) {
+  border-radius: 12px;
+}
+:deep(.el-dialog__header) {
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid #f0f2f5;
+}
+:deep(.el-dialog__body) {
+  padding: 24px;
+}
+:deep(.el-dialog__footer) {
+  padding: 16px 24px 20px;
+  border-top: 1px solid #f0f2f5;
+}
+
+/* 表单样式优化 */
+:deep(.el-form-item__content) {
+  margin-left: 0 !important;
+}
+:deep(.el-input) {
+  --el-input-border-radius: 6px;
+  --el-input-hover-border-color: #93c5fd;
+}
+
+/* 按钮样式统一 */
+:deep(.el-button) {
+  --el-button-border-radius: 6px;
+}
+
+/* 响应式适配 */
 @media (max-width: 768px) {
+  .content-wrapper {
+    padding: 16px;
+  }
+  .top-operation-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .top-operation-bar .el-input {
+    width: 100% !important;
+  }
   .pagination-container {
     flex-direction: column;
-    gap: 10px;
-    align-items: flex-start;
+    align-items: stretch;
+  }
+  .pagination-left, .pagination-right {
+    justify-content: center;
+    margin-bottom: 12px;
+  }
+  .pagination-right {
+    flex-wrap: wrap;
+    justify-content: center;
   }
 }
 </style>

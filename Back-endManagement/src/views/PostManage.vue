@@ -75,7 +75,7 @@
           </div>
         </div>
 
-        <!-- 列表区：显示圈子/标签名称（适配多对多标签） -->
+        <!-- 列表区：显示圈子/标签名称（适配多对多标签）+ 作者名称 -->
         <el-table :data="postList" border @selection-change="handleSelectionChange">
           <el-table-column type="selection" width="55" />
           <el-table-column prop="title" label="帖子标题" min-width="200" show-overflow-tooltip />
@@ -99,7 +99,12 @@
               <span v-if="!scope.row.tagIds || scope.row.tagIds.length === 0">无标签</span>
             </template>
           </el-table-column>
-          <el-table-column prop="userId" label="作者" width="100" />
+          <!-- 作者列：替换原userId显示为作者名称 -->
+          <el-table-column label="作者" width="100">
+            <template #default="scope">
+              {{ scope.row.authorName || '未知作者' }}
+            </template>
+          </el-table-column>
           <el-table-column label="发布时间" width="180">
             <template #default="scope">
               {{ formatTime(scope.row.createTime) }}
@@ -112,13 +117,46 @@
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="200">
+          <el-table-column label="操作" width="280" align="center">
             <template #default="scope">
-              <el-button type="link" @click="handleEdit(scope.row)">编辑</el-button>
-              <el-button type="link" :type="scope.row.status === 1 ? 'warning' : 'success'" @click="handleStatusChange(scope.row)">
-                {{ scope.row.status === 1 ? '下架' : scope.row.status === 0 ? '上架' : '发布' }}
-              </el-button>
-              <el-button type="link" danger @click="handleDelete(scope.row)">删除</el-button>
+              <!-- 操作按钮组：统一为图标+文字+文本按钮样式 -->
+              <div class="operation-btn-group">
+                <!-- 编辑按钮：蓝色 + 编辑图标 -->
+                <el-button
+                  size="small"
+                  type="text"
+                  text-color="#409EFF"
+                  @click="handleEdit(scope.row)"
+                >
+                  <el-icon class="icon-mr"><Edit /></el-icon>编辑
+                </el-button>
+
+                <!-- 状态切换按钮：根据状态显示不同文字+图标+颜色 -->
+                <el-button
+                  size="small"
+                  type="text"
+                  :text-color="scope.row.status === 1 ? '#F56C6C' : '#67C23A'"
+                  @click="handleStatusChange(scope.row)"
+                >
+                  <el-icon class="icon-mr">
+                    <Switch v-if="scope.row.status === 1 || scope.row.status === 0" />
+                    <!-- 改用100%存在的CircleCheck图标 -->
+                    <CircleCheck v-if="scope.row.status === 2" />
+                  </el-icon>
+                  {{ scope.row.status === 1 ? '下架' : scope.row.status === 0 ? '上架' : '发布' }}
+                </el-button>
+
+                <!-- 删除按钮：红色 + 删除图标 -->
+                <el-button
+                  size="small"
+                  type="text"
+                  danger
+                  style="color: #F56C6C !important;"
+                  @click="handleDelete(scope.row)"
+                >
+                  <el-icon class="icon-mr"><Delete /></el-icon>删除
+                </el-button>
+              </div>
             </template>
           </el-table-column>
         </el-table>
@@ -221,6 +259,8 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
 import { ElMessageBox, ElMessage } from 'element-plus';
+// 改用Element Plus 100%兼容的基础图标（Edit/Delete/Switch/CircleCheck）
+import { Edit, Delete, Switch, CircleCheck } from '@element-plus/icons-vue';
 // 导入左侧导航栏组件（复用）
 import Sidebar from '../components/Sidebar.vue';
 // 导入dayjs处理时间格式化
@@ -241,6 +281,9 @@ import {
   getTagIdsByPostId,  // 根据帖子ID查标签ID
   savePostTagRelation // 保存帖子-标签关联（新增/编辑）
 } from '../api/postTag';
+
+// 导入用户相关接口（新增：getUsernameById 根据作者ID查名称）
+import { fetchUserList, getUsernameById } from '../api/userApi';
 
 // === 核心联动数据：圈子/标签列表 ===
 const circleList = ref([]); // 所有圈子（从后端获取）
@@ -371,7 +414,7 @@ const fetchTagListApi = async () => {
   }
 };
 
-// 拉取帖子列表：补充标签ID查询（多对多）
+// 拉取帖子列表：补充标签ID查询（多对多）+ 作者名称查询
 const fetchPosts = async () => {
   try {
     const params = {
@@ -389,24 +432,38 @@ const fetchPosts = async () => {
     const originPosts = res.data || [];
     total.value = res.total || 0;
 
-    // 2. 批量查询每个帖子的标签ID（适配多对多）
-    const postsWithTags = await Promise.all(
+    // 2. 批量查询每个帖子的标签ID + 作者名称（适配多对多+作者名称显示）
+    const postsWithTagsAndAuthor = await Promise.all(
       originPosts.map(async (post) => {
         try {
-          // 调用帖子-标签关联接口
+          // 2.1 查询帖子标签ID
           const tagRes = await getTagIdsByPostId(post.id);
+          const tagIds = tagRes.code === 200 ? tagRes.data : [];
+
+          // 2.2 查询作者名称（核心新增逻辑）
+          let authorName = '未知作者';
+          if (post.userId) {
+            try {
+              const userRes = await getUsernameById(Number(post.userId));
+              authorName = userRes.code === 200 ? userRes.data : '未知作者';
+            } catch (userErr) {
+              console.error(`查询帖子${post.id}作者名称失败：`, userErr);
+            }
+          }
+
           return {
             ...post,
-            tagIds: tagRes.code === 200 ? tagRes.data : [] // 标签ID数组
+            tagIds, // 标签ID数组
+            authorName // 新增作者名称字段
           };
         } catch (err) {
-          console.error(`查询帖子${post.id}标签失败：`, err);
-          return { ...post, tagIds: [] };
+          console.error(`处理帖子${post.id}数据失败：`, err);
+          return { ...post, tagIds: [], authorName: '未知作者' };
         }
       })
     );
 
-    postList.value = postsWithTags;
+    postList.value = postsWithTagsAndAuthor;
   } catch (err) {
     ElMessage.error('获取帖子列表失败：' + (err.message || '网络异常'));
     console.error(err);
@@ -615,5 +672,44 @@ const handleStatusChange = async (row) => {
 /* 标签间距 */
 .mr-1 {
   margin-right: 4px;
+}
+
+/* 操作按钮组样式（和标签管理页面统一） */
+.operation-btn-group {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 图标与文字间距 */
+.icon-mr {
+  margin-right: 4px;
+}
+
+/* 统一文本按钮样式 */
+:deep(.el-button--text) {
+  --el-button-hover-bg-color: transparent;
+  font-size: 14px;
+}
+
+/* 编辑按钮蓝色 */
+:deep(.el-button--text:not(.danger)) {
+  color: #409EFF !important;
+}
+
+/* 删除按钮红色（强制生效） */
+:deep(.el-button--text.danger) {
+  color: #F56C6C !important;
+}
+
+/* 状态切换按钮颜色适配 */
+:deep(.el-button--text) {
+  &[text-color="#F56C6C"] {
+    color: #F56C6C !important;
+  }
+  &[text-color="#67C23A"] {
+    color: #67C23A !important;
+  }
 }
 </style>

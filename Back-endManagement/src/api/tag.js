@@ -34,3 +34,13 @@ export const tagApi = {
     });
   }
 };
+
+// 标签分页查询（仅这一个接口，无其他）
+export const fetchTags = async (params) => {
+  return service({
+    url: '/api/v1/tag/page',
+    method: 'GET',
+    params,
+    showLoading: false
+  });
+};
